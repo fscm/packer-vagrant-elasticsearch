@@ -1,0 +1,62 @@
+# encoding: utf-8
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# For network calculation...
+require 'ipaddr'
+
+# Internal Network CIDR
+$elasticsearch_network_cidr ||= "172.16.0.48/28"
+
+# Number of Elasticsearch servers
+$elasticsearch_instances_number ||= 1
+
+# Override default values if defined
+CONFIG ||= File.join(File.dirname(__FILE__), "config.rb")
+if File.exist?(CONFIG)
+  require CONFIG
+end
+
+# Calculate the list of cluster nodes
+elasticsearch_nodes ||= (1..$elasticsearch_instances_number).inject([IPAddr.new($elasticsearch_network_cidr)]){ |l, i| l << l.last.succ.to_s }[1..-1]
+
+# Vagrantfile API/syntax version.
+VAGRANTFILE_API_VERSION ||= "2"
+
+# Vagrant version.
+# version 1.8.0 is required due to issue https://github.com/mitchellh/vagrant/issues/5497
+Vagrant.require_version ">= 1.8.0"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "fscm/elasticsearch"
+
+  config.ssh.forward_agent = false
+  config.ssh.forward_x11 = false
+  config.ssh.keep_alive = true
+  config.ssh.username = "pollywog"
+
+  config.vm.box_check_update = true
+
+  config.vm.network "forwarded_port", guest: 9200, host: 9200, protocol: "tcp", auto_correct: true
+  config.vm.network "forwarded_port", guest: 9300, host: 9300, protocol: "tcp", auto_correct: true
+
+  config.vm.communicator = "ssh"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder ".", "/shared", create: true
+
+  (1..$elasticsearch_instances_number).each do |instance|
+    config.vm.define instance_name = "elasticsearch%02d" % instance do |config|
+      config.vm.hostname = instance_name
+      config.vm.network "private_network", ip: elasticsearch_nodes[instance - 1], auto_config: true
+      config.vm.provision :shell, privileged: true, inline: "systemctl stop elasticsearch.service && echo service stoped"
+      config.vm.provision :shell, privileged: true, inline: "rm -rf /srv/elasticsearch/data/* /srv/elasticsearch/logs/* && echo data cleaned up"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^network.publish_host:/s/:.*/: " + elasticsearch_nodes[instance - 1] + "/' /srv/elasticsearch/config/elasticsearch.yml"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^discovery.zen.ping.unicast.hosts:/s/:.*/: [\"" + elasticsearch_nodes.join('","') + "\"]/' /srv/elasticsearch/config/elasticsearch.yml"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^discovery.zen.minimum_master_nodes:/s/:.*/: " + (elasticsearch_nodes.length/2+1).to_s + "/' /srv/elasticsearch/config/elasticsearch.yml"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^gateway.recover_after_nodes:/s/:.*/: " + (elasticsearch_nodes.length/2+1).to_s + "/' /srv/elasticsearch/config/elasticsearch.yml"
+      config.vm.provision :shell, privileged: true, inline: "systemctl start elasticsearch.service && echo service started"
+    end
+  end
+end

@@ -1,0 +1,5 @@
+# Internal Network CIDR
+$elasticsearch_network_cidr = "172.16.0.48/28"
+
+# Number of Elasticsearch servers
+$elasticsearch_instances_number = 1
