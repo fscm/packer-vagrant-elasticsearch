@@ -111,7 +111,7 @@
         "sudo apt-get -qq update",
         "sudo DEBIAN_FRONTEND=noninteractive apt-get -y -qq install --no-install-recommends linux-headers-amd64 vim wget dbus unzip zip libyaml-0-2 curl",
         "sudo DEBIAN_FRONTEND=noninteractive apt-get -y -qq install --no-install-recommends -t jessie-backports virtualbox-guest-dkms virtualbox-guest-utils",
-        "sudo DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge dictionaries* emacs* iamerican* ibritish* ienglish* ispell nfacct tcpd vim-tiny xauth libxmuu1",
+        "sudo apt-get -y -qq purge dictionaries* emacs* iamerican* ibritish* ienglish* ispell nfacct tcpd vim-tiny xauth libxmuu1",
         "sudo apt-get -y -qq --purge autoremove",
         "sudo apt-get autoclean",
         "sudo apt-get clean"
@@ -129,6 +129,7 @@
         "sudo dpkg-reconfigure -f noninteractive dash",
         "sudo sed -i -e '/^#NAutoVTs/aNAutoVTs=2' /etc/systemd/logind.conf",
         "sudo update-locale LC_CTYPE={{user `system_locale`}}.UTF-8",
+        "echo 'export TZ=:/etc/localtime' | sudo tee /etc/profile.d/tz.sh > /dev/null",
         "sudo update-alternatives --set editor /usr/bin/vim.basic",
         "echo === Sysctl ===",
         "sudo cp /tmp/50-elasticsearch.conf /etc/sysctl.d/",
